@@ -154,6 +154,7 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         offset_y = height * self.GRAVITIES[gravity].value[1]
 
         gap = gap or self.gap
+        print("Applying gap:", gap)
 
         return (round(x - offset_x + self.margin_x + gap, 3),
                 round(y - offset_y + self.margin_y + gap, 3),
@@ -220,4 +221,5 @@ def make_winsplit_positions(columns: int,
     for grav in ('top-left', 'top-right', 'bottom-left', 'bottom-right'):
         positions[grav] = [gvlay(width, 0.5, grav) for width in edge_steps]
 
+    print("Applying gap:", gap)
     return positions
