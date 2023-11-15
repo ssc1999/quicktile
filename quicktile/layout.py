@@ -1,4 +1,3 @@
-Copy code
 # Layout calculation code
 
 __author__ = "Stephan Sokolow (deitarion/SSokolow)"
