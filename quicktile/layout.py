@@ -57,8 +57,6 @@ def resolve_fractional_geom(fract_geom: Union[PercentRectTuple, Rectangle],
             y=fract_geom[1] * monitor_rect.height,
             width=fract_geom[2] * monitor_rect.width,
             height=fract_geom[3] * monitor_rect.height)
-
-
 class GravityLayout(object):  # pylint: disable=too-few-public-methods
     """Helper for translating top-left relative dimensions to other corners.
 
@@ -99,6 +97,7 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         x in Gravity.__members__)
 
     def __init__(self, margin_x: float = 0, margin_y: float = 0, gap: float = 0):
+        print("Gap value:", gap)  # Add this line
         if margin_x >= 1:
             log.warning("margin_x should be a percentage of the screen width "
                         "less than 100%% (got %d%%)",
@@ -111,7 +110,6 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         self.margin_x = min(margin_x, 1)
         self.margin_y = min(margin_y, 1)
         self.gap = min(gap, 1)
-
     # pylint: disable=too-many-arguments
     def __call__(self,
                  width: float,
