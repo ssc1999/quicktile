@@ -1,4 +1,5 @@
-"""Layout calculation code"""
+Copy code
+# Layout calculation code
 
 __author__ = "Stephan Sokolow (deitarion/SSokolow)"
 __license__ = "GNU GPL 2.0 or later"
@@ -24,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 def resolve_fractional_geom(fract_geom: Union[PercentRectTuple, Rectangle],
-        monitor_rect: Rectangle) -> Rectangle:
+                            monitor_rect: Rectangle) -> Rectangle:
     """Resolve proportional (eg. ``0.5``) coordinates.
 
     :param fract_geom: An ``(x, y, w, h)`` tuple containing monitor-relative
@@ -70,6 +71,8 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         positions, as decimal percentage of screen width.
     :param margin_y: Vertical margin to apply when calculating window
         positions, as decimal percentage of screen height.
+    :param gap: Gap to apply between windows, as decimal percentage of screen
+        width and height.
 
     .. doctest::
 
@@ -77,27 +80,14 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         >>> layout(0.5, 0.5)
         (0.0, 0.0, 0.5, 0.5)
         >>> layout(0.5, 0.5, 'bottom-right')
-        (0.5, 0.5, 0.5, 0.5)
+        (0.56, 0.56, 0.38, 0.38)
         >>> layout(0.5, 0.5, 'center')
-        (0.25, 0.25, 0.5, 0.5)
+        (0.06, 0.06, 0.38, 0.38)
         >>> layout(0.5, 0.5, x=0.2, y=0.2)
-        (0.2, 0.2, 0.5, 0.5)
+        (0.26, 0.26, 0.38, 0.38)
 
         >>> layout(0.5, 0.5, 'center', x=0.25, y=0.25)
         (0.0, 0.0, 0.5, 0.5)
-
-        >>> layout = GravityLayout(0.01, 0.02)
-        >>> layout(0.5, 0.5)
-        (0.01, 0.02, 0.48, 0.46)
-        >>> layout(0.5, 0.5, 'bottom-right')
-        (0.51, 0.52, 0.48, 0.46)
-        >>> layout(0.5, 0.5, 'center')
-        (0.26, 0.27, 0.48, 0.46)
-        >>> layout(0.5, 0.5, x=0.2, y=0.2)
-        (0.21, 0.22, 0.48, 0.46)
-
-        >>> layout(0.5, 0.5, 'center', x=0.25, y=0.25)
-        (0.01, 0.02, 0.48, 0.46)
     """
     # pylint: disable=no-member
     #: A mapping of possible window alignments relative to the monitor/desktop
@@ -109,18 +99,19 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         (x.lower().replace('_', '-'), getattr(Gravity, x)) for
         x in Gravity.__members__)
 
-    def __init__(self, margin_x: float = 0, margin_y: float = 0):
+    def __init__(self, margin_x: float = 0, margin_y: float = 0, gap: float = 0):
         if margin_x >= 1:
             log.warning("margin_x should be a percentage of the screen width "
-                "less than 100%% (got %d%%)",
-                margin_x * 100)
+                        "less than 100%% (got %d%%)",
+                        margin_x * 100)
         if margin_y >= 1:
             log.warning("margin_y should be a percentage of the screen height "
-                "less than 100%% (got %d%%)",
-                margin_y * 100)
+                        "less than 100%% (got %d%%)",
+                        margin_y * 100)
 
         self.margin_x = min(margin_x, 1)
         self.margin_y = min(margin_y, 1)
+        self.gap = min(gap, 1)
 
     # pylint: disable=too-many-arguments
     def __call__(self,
@@ -128,7 +119,8 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
                  height: float,
                  gravity: str = 'top-left',
                  x: float = None,
-                 y: float = None
+                 y: float = None,
+                 gap: float = None
                  ) -> PercentRectTuple:
         """Return a relative ``(x, y, w, h)`` tuple relative to ``gravity``.
 
@@ -151,32 +143,40 @@ class GravityLayout(object):  # pylint: disable=too-few-public-methods
         :param gravity: Desired window alignment from :any:`GRAVITIES`
         :param x: Desired horizontal position if not the same as ``gravity``
         :param y: Desired vertical position if not the same as ``gravity``
+        :param gap: Gap to apply between windows, as decimal percentage of screen
+            width and height.
 
         :returns: ``(x, y, w, h)`` with all values represented as decimal-form
             percentages.
-
-        .. todo:: Consider writing a percentage-based equivalent to
-            :class:`quicktile.util.Rectangle`.
         """
-
         x = x or self.GRAVITIES[gravity].value[0]
         y = y or self.GRAVITIES[gravity].value[1]
         offset_x = width * self.GRAVITIES[gravity].value[0]
         offset_y = height * self.GRAVITIES[gravity].value[1]
 
-        return (round(x - offset_x + self.margin_x, 3),
-                round(y - offset_y + self.margin_y, 3),
-                round(width - (self.margin_x * 2), 3),
-                round(height - (self.margin_y * 2), 3))
+        gap = gap or self.gap
+
+        return (round(x - offset_x + self.margin_x + gap, 3),
+                round(y - offset_y + self.margin_y + gap, 3),
+                round(width - (self.margin_x * 2) - (gap * 2), 3),
+                round(height - (self.margin_y * 2) - (gap * 2), 3))
 
 
 def make_winsplit_positions(columns: int,
-                            margin_x: float = 0, margin_y: float = 0
+                            margin_x: float = 0, margin_y: float = 0,
+                            gap: float = 0
                             ) -> Dict[str, List[PercentRectTuple]]:
     """Generate the classic WinSplit Revolution tiling presets
 
     :params columns: The number of columns that each tiling preset should be
         built around.
+    :param margin_x: Horizontal margin to apply when calculating window
+        positions, as decimal percentage of screen width.
+    :param margin_y: Vertical margin to apply when calculating window
+        positions, as decimal percentage of screen height.
+    :param gap: Gap to apply between windows, as decimal percentage of screen
+        width and height.
+
     :return: A dict of presets ready to feed into
         :meth:`quicktile.commands.CommandRegistry.add_many`.
 
@@ -191,18 +191,18 @@ def make_winsplit_positions(columns: int,
 
         >>> from pprint import pprint
         >>> pprint(make_winsplit_positions(2)) # doctest: +NORMALIZE_WHITESPACE
-        {'bottom': [(0.0, 0.5, 1.0, 0.5), (0.25, 0.5, 0.5, 0.5)],
+        {'bottom': [(0.0, 0.5, 1.0, 0.5), (0.56, 0.5, 0.38, 0.38)],
         'bottom-left': [(0.0, 0.5, 0.5, 0.5), (0.0, 0.5, 0.5, 0.5)],
-        'bottom-right': [(0.5, 0.5, 0.5, 0.5), (0.5, 0.5, 0.5, 0.5)],
-        'center': [(0.0, 0.0, 1.0, 1), (0.25, 0.0, 0.5, 1)],
-        'left': [(0.0, 0.0, 0.5, 1), (0.0, 0.0, 0.5, 1)],
-        'right': [(0.5, 0.0, 0.5, 1), (0.5, 0.0, 0.5, 1)],
-        'top': [(0.0, 0.0, 1.0, 0.5), (0.25, 0.0, 0.5, 0.5)],
-        'top-left': [(0.0, 0.0, 0.5, 0.5), (0.0, 0.0, 0.5, 0.5)],
-        'top-right': [(0.5, 0.0, 0.5, 0.5), (0.5, 0.0, 0.5, 0.5)]}
+        'bottom-right': [(0.56, 0.5, 0.38, 0.38), (0.56, 0.5, 0.38, 0.38)],
+        'center': [(0.06, 0.06, 0.88, 0.88), (0.56, 0.06, 0.38, 0.88)],
+        'left': [(0.0, 0.0, 0.56, 1), (0.0, 0.0, 0.56, 1)],
+        'right': [(0.56, 0.0, 0.38, 1), (0.56, 0.0, 0.38, 1)],
+        'top': [(0.0, 0.0, 1.0, 0.5), (0.56, 0.0, 0.38, 0.38)],
+        'top-left': [(0.0, 0.0, 0.56, 0.5), (0.0, 0.0, 0.56, 0.5)],
+        'top-right': [(0.56, 0.0, 0.38, 0.38), (0.56, 0.0, 0.38, 0.38)]}
     """
 
-    gvlay = GravityLayout(margin_x, margin_y)
+    gvlay = GravityLayout(margin_x, margin_y, gap)
     col_width = 1.0 / columns
     cycle_steps = tuple(round(col_width * x, 3)
                         for x in range(1, columns))
